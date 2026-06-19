@@ -123,6 +123,15 @@ func TestSelectDad_RandomlySelectsAmongTiedCandidates(t *testing.T) {
 	}
 }
 
+// estNow tests
+
+func TestEstNow_ReturnsEasternZonedTime(t *testing.T) {
+	got := estNow()
+	if got.Location().String() != "America/New_York" {
+		t.Errorf("expected estNow location America/New_York, got %s", got.Location())
+	}
+}
+
 // nextPickTime tests
 
 func TestNextPickTime_ReturnsCurrentMonthWhenBeforePickTimeOnFirst(t *testing.T) {

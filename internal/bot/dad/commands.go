@@ -65,7 +65,7 @@ func (c *setDadCommand) Handler(ctx context.Context, s *discordgo.Session, m *di
 	}
 
 	target := m.Mentions[0]
-	currentMonth, nextMonth, err := setDadOverride(ctx, c.repo, m.GuildID, target.ID, time.Now())
+	currentMonth, nextMonth, err := setDadOverride(ctx, c.repo, m.GuildID, target.ID, estNow())
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (c *whosDadCommand) CanActivate(_ *discordgo.Session, m discordgo.Message) 
 }
 
 func (c *whosDadCommand) Handler(ctx context.Context, _ *discordgo.Session, m *discordgo.MessageCreate) (*discordgo.MessageSend, error) {
-	now := time.Now()
+	now := estNow()
 	entry, err := c.repo.getDadForMonth(ctx, m.GuildID, now.Year(), int(now.Month()))
 	if err != nil {
 		return nil, fmt.Errorf("error fetching dad of month: %w", err)

@@ -14,13 +14,12 @@ import (
 // until the 1st of each month at 10am EST and picks automatically.
 func StartScheduler(ctx context.Context, l *slog.Logger, s *discordgo.Session, repo Repository, channelID, dadRoleID string) {
 	go func() {
-		now := time.Now()
-		if err := runPickIfNeeded(ctx, l, s, repo, channelID, dadRoleID, now); err != nil {
+		if err := runPickIfNeeded(ctx, l, s, repo, channelID, dadRoleID, estNow()); err != nil {
 			l.Error("dad-of-month catch-up pick failed", "err", err)
 		}
 
 		for {
-			next := nextPickTime(time.Now())
+			next := nextPickTime(estNow())
 			l.Info("dad-of-month scheduler sleeping", "next_pick", next)
 
 			select {
@@ -29,8 +28,7 @@ func StartScheduler(ctx context.Context, l *slog.Logger, s *discordgo.Session, r
 			case <-time.After(time.Until(next)):
 			}
 
-			now := time.Now()
-			if err := runPickIfNeeded(ctx, l, s, repo, channelID, dadRoleID, now); err != nil {
+			if err := runPickIfNeeded(ctx, l, s, repo, channelID, dadRoleID, estNow()); err != nil {
 				l.Error("dad-of-month scheduled pick failed", "err", err)
 			}
 		}
@@ -60,7 +58,7 @@ func runPickIfNeeded(ctx context.Context, l *slog.Logger, s *discordgo.Session, 
 
 // PickAndAnnounceForGuild is called by the !pickdad command to force a pick.
 func PickAndAnnounceForGuild(ctx context.Context, l *slog.Logger, s *discordgo.Session, repo Repository, guild *discordgo.Guild, channelID, dadRoleID string) error {
-	return pickAndAnnounce(ctx, l, s, repo, guild, channelID, dadRoleID, time.Now(), false)
+	return pickAndAnnounce(ctx, l, s, repo, guild, channelID, dadRoleID, estNow(), false)
 }
 
 func pickAndAnnounce(ctx context.Context, l *slog.Logger, s *discordgo.Session, repo Repository, guild *discordgo.Guild, channelID, dadRoleID string, now time.Time, isOverride bool) error {

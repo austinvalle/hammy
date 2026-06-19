@@ -22,6 +22,13 @@ func init() {
 	}
 }
 
+// estNow returns the current time in US Eastern. All calendar-month math in this
+// package derives from Eastern time so the feature behaves identically no matter
+// what timezone the server runs in (the IANA zone also handles EST/EDT).
+func estNow() time.Time {
+	return time.Now().In(estLocation)
+}
+
 // selectDad picks a dad from candidates using the fairness algorithm:
 // - excludes last month's pick (unless they're the only candidate)
 // - counts only non-override appearances in the last 12 months

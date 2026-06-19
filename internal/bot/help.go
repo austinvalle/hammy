@@ -37,11 +37,19 @@ func (c *helpCommand) Handler(_ context.Context, s *discordgo.Session, m *discor
 				Name: "Tune image generation",
 				Value: "Use `setImageEnhancement {on or off}` to change Hammy's ability to enhance your art prompt! " +
 					"Additionally you can use `setGuidance 3.4` or similar to change the guidance used for image generation. " +
-					"6-10 is going to be less artifacts but more strict`",
+					"6-10 is going to be less artifacts but more strict.",
 			},
 			{
 				Name:  "WATO (What Are The Odds)",
 				Value: "Challenge someone with `what are the odds {challenge}` for a fun game!",
+			},
+			{
+				Name: "Dad of the Month",
+				Value: "I crown a Dad of the Month on the 1st of each month and keep it fair over time.\n" +
+					"• `!whosdad` — see the current Dad of the Month\n" +
+					"• `!adddad @user` — add someone to the dad pool\n" +
+					"• `!setdad @user` — *(admin)* override the pick for this month and next (e.g. new baby)\n" +
+					"• `!pickdad` — *(admin)* force a pick for the current month",
 			},
 			{
 				Name:  "Reset Context",
