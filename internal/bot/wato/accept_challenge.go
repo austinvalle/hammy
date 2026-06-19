@@ -43,6 +43,7 @@ func (c *acceptChallengeCommand) CanActivate(s *discordgo.Session, m discordgo.M
 	channel, err := s.Channel(m.ChannelID)
 	if err != nil {
 		c.logger.Error("error getting channel ID for acceptChallengeCommand", "err", err)
+		return false
 	}
 
 	if channel.Type != discordgo.ChannelTypeGuildText {
@@ -100,7 +101,7 @@ func (c *acceptChallengeCommand) Handler(_ context.Context, s *discordgo.Session
 		return nil, nil
 	}
 
-	betLimit, err := strconv.Atoi(strings.Replace(numbersFound[0], ",", "", -1))
+	betLimit, err := strconv.Atoi(strings.ReplaceAll(numbersFound[0], ",", ""))
 	if err != nil && !errors.Is(err, strconv.ErrRange) {
 		return nil, err
 	}

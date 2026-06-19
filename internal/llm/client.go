@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/austinvalle/hammy/internal/config"
 	"github.com/ollama/ollama/api"
@@ -25,7 +24,6 @@ var chatTmpl string
 
 // max = llama 3.1 - system prompt from modelfile - num_ctx from modelfile
 const maxTokens = 128000 - 515 - 4096
-const modelDir = "/hammy/models" // nolint:unused
 
 type Options func(opts map[string]any)
 
@@ -205,7 +203,7 @@ func (s *syncClientImpl) configure(ctx context.Context) error {
 	}
 
 	if cErr := s.createModels(ctx, cr); cErr != nil {
-		return err
+		return cErr
 	}
 
 	s.logger.Info("configure done")
@@ -214,16 +212,12 @@ func (s *syncClientImpl) configure(ctx context.Context) error {
 
 func (s *syncClientImpl) createModels(ctx context.Context, reqs []*api.CreateRequest) error {
 	stream := false
-	wg := sync.WaitGroup{}
 
 	for _, req := range reqs {
 		req.Stream = &stream
 
-		wg.Add(1)
 		s.logger.Info("creating new model", "model", req.Model)
-		err := s.c.Create(ctx, req, s.handleProgress(ctx, &wg, req.Model))
-
-		wg.Wait()
+		err := s.c.Create(ctx, req, s.handleProgress(ctx, req.Model))
 		if err != nil {
 			return fmt.Errorf("error creating %s model: %w", req.Model, err)
 		}
@@ -232,7 +226,7 @@ func (s *syncClientImpl) createModels(ctx context.Context, reqs []*api.CreateReq
 	return nil
 }
 
-func (s *syncClientImpl) handleProgress(ctx context.Context, wg *sync.WaitGroup, reqModel string) func(api.ProgressResponse) error {
+func (s *syncClientImpl) handleProgress(ctx context.Context, reqModel string) func(api.ProgressResponse) error {
 	return func(r api.ProgressResponse) error {
 		args := []slog.Attr{
 			slog.String("status", r.Status),
@@ -245,10 +239,6 @@ func (s *syncClientImpl) handleProgress(ctx context.Context, wg *sync.WaitGroup,
 		}
 
 		s.logger.LogAttrs(ctx, slog.LevelDebug, "processing model", args...)
-
-		if r.Status == "success" {
-			wg.Done()
-		}
 		return nil
 	}
 }

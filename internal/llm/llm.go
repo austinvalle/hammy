@@ -5,15 +5,17 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"math"
+	"sync/atomic"
+	"text/template"
+	"time"
+
 	"github.com/austinvalle/hammy/internal/config"
 	"github.com/bwmarrin/discordgo"
 	"github.com/chromedp/chromedp"
 	"log/slog"
 	"slices"
 	"strings"
-	"sync/atomic"
-	"text/template"
-	"time"
 )
 
 //go:embed tpl/analyze.tpl
@@ -33,10 +35,26 @@ type Settings struct {
 type LLM struct {
 	logger             *slog.Logger
 	ollama             ollamaClient
-	Temperature        float32
+	temperature        atomic.Uint32
 	dezgoToken         string
 	EnhanceImagePrompt atomic.Bool
-	Guidance           float32
+	guidance           atomic.Uint32
+}
+
+func (l *LLM) Temperature() float32 {
+	return math.Float32frombits(l.temperature.Load())
+}
+
+func (l *LLM) SetTemperature(t float32) {
+	l.temperature.Store(math.Float32bits(t))
+}
+
+func (l *LLM) Guidance() float32 {
+	return math.Float32frombits(l.guidance.Load())
+}
+
+func (l *LLM) SetGuidance(g float32) {
+	l.guidance.Store(math.Float32bits(g))
 }
 
 type ollamaClient interface {
@@ -62,13 +80,13 @@ func NewLLM(logger *slog.Logger, cfg config.Config) (*LLM, error) {
 	}
 
 	llm := &LLM{
-		logger:      logger,
-		ollama:      client,
-		Temperature: temp,
-		dezgoToken:  cfg.DezgoToken,
-		Guidance:    3.4,
+		logger:     logger,
+		ollama:     client,
+		dezgoToken: cfg.DezgoToken,
 	}
 
+	llm.SetTemperature(temp)
+	llm.SetGuidance(3.4)
 	llm.EnhanceImagePrompt.Store(cfg.EnhanceImagePrompt)
 	return llm, nil
 }
@@ -80,17 +98,16 @@ func (l *LLM) Analyze(ctx context.Context, url string, message *discordgo.Messag
 	}
 	l.logger.Debug("retrieved website content", "content", content)
 
-	data := struct {
-		mention string
-		content string
-		prompt  string
-	}{
-		mention: message.Author.Mention(),
-		content: content,
-		prompt:  message.Content,
+	data := map[string]string{
+		"mention": message.Author.Mention(),
+		"content": content,
+		"prompt":  message.Content,
 	}
 
 	prompt, err := useTemplate(analyzeTemplate, data)
+	if err != nil {
+		return "", fmt.Errorf("error building analyze prompt: %w", err)
+	}
 
 	t := time.Now()
 
@@ -99,7 +116,7 @@ func (l *LLM) Analyze(ctx context.Context, url string, message *discordgo.Messag
 		l.logger.Info("llm call completed", "elapsed", elapsed)
 	}(t)
 
-	return l.ollama.generate(ctx, hammy, prompt, WithTemperature(l.Temperature))
+	return l.ollama.generate(ctx, hammy, prompt, WithTemperature(l.Temperature()))
 }
 
 func (l *LLM) Chat(ctx context.Context, m *discordgo.Message, history []*discordgo.Message) (string, error) {
@@ -111,14 +128,14 @@ func (l *LLM) Chat(ctx context.Context, m *discordgo.Message, history []*discord
 	}
 
 	latest := formatMessage(m)
-	return l.ollama.chat(ctx, hammy, latest, msgs, WithTemperature(l.Temperature))
+	return l.ollama.chat(ctx, hammy, latest, msgs, WithTemperature(l.Temperature()))
 }
 
 func (l *LLM) GetSettings() Settings {
 	return Settings{
-		Temperature:        l.Temperature,
+		Temperature:        l.Temperature(),
 		EnhanceImagePrompt: l.EnhanceImagePrompt.Load(),
-		Guidance:           l.Guidance,
+		Guidance:           l.Guidance(),
 	}
 }
 

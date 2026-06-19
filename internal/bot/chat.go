@@ -80,7 +80,9 @@ func (c *chatCommand) Handler(ctx context.Context, s *discordgo.Session, m *disc
 	sanitize(m.Message)
 
 	//remove latest from history
-	msgs = msgs[:len(msgs)-1]
+	if len(msgs) > 0 {
+		msgs = msgs[:len(msgs)-1]
+	}
 	resp, err := c.llm.Chat(ctx, m.Message, msgs)
 	if err != nil {
 		return nil, err

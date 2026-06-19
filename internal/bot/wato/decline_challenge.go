@@ -33,6 +33,7 @@ func (c *declineChallengeCommand) CanActivate(s *discordgo.Session, m discordgo.
 	channel, err := s.Channel(m.ChannelID)
 	if err != nil {
 		c.logger.Error("error getting channel ID for declineChallengeCommand", "err", err)
+		return false
 	}
 
 	if channel.Type != discordgo.ChannelTypeGuildText {

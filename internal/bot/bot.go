@@ -40,7 +40,7 @@ func RunBot(l *slog.Logger, session *discordgo.Session, cfg config.Config) error
 
 	logger.Info("connecting to database", "host", cfg.DBHost, "port", cfg.DBPort)
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s", cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort)
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
 	dbpool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		return fmt.Errorf("error creating database: %w", err)
