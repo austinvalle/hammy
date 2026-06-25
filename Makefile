@@ -1,10 +1,18 @@
+# Load .env so the migrate targets can build the database URL.
+-include .env
+export
+
 # Variables
 DockerFile := docker-compose-dev.yml
 DockerGpu := docker-compose-dev-gpu.yml
 ContainerName := ollama
 ModelName := hammy
 
-.PHONY: start start-gpu up down delete setup_models
+MigrationsDir := migrations
+# Connects to the dev database published on localhost by docker-compose-dev.yml.
+DbUrl := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:5432/$(POSTGRES_DB)?sslmode=disable
+
+.PHONY: start start-gpu up down delete setup_models migrate-create migrate-up migrate-down migrate-version
 
 # Start services and setup models for CPU
 start: up setup_models
@@ -43,3 +51,24 @@ delete:
 setup_models:
 	@echo "Setting up model ${ModelName}..."
 	docker exec ${ContainerName} ollama create ${ModelName} -f /models/${ModelName}.modelfile
+
+# Create a new pair of migration files: make migrate-create name=add_something
+migrate-create:
+	@test -n "$(name)" || (echo "Usage: make migrate-create name=<description>" && exit 1)
+	docker run --rm -v $(PWD)/$(MigrationsDir):/migrations migrate/migrate \
+		create -ext sql -dir /migrations -seq $(name)
+
+# Apply all pending migrations against the dev database
+migrate-up:
+	docker run --rm --network host -v $(PWD)/$(MigrationsDir):/migrations migrate/migrate \
+		-path /migrations -database "$(DbUrl)" up
+
+# Roll back the most recent migration
+migrate-down:
+	docker run --rm --network host -v $(PWD)/$(MigrationsDir):/migrations migrate/migrate \
+		-path /migrations -database "$(DbUrl)" down 1
+
+# Print the current migration version
+migrate-version:
+	docker run --rm --network host -v $(PWD)/$(MigrationsDir):/migrations migrate/migrate \
+		-path /migrations -database "$(DbUrl)" version

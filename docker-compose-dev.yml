@@ -8,12 +8,31 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-#      - db:/var/lib/postgresql/data
-      # Initialize the database on first create
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Dev DB is intentionally ephemeral (no persistent volume) so migrations
+    # re-run from scratch on each `make up`.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - 5432:5432
+
+  # Applies all pending migrations against the dev database, then exits.
+  migrate:
+    image: migrate/migrate
+    restart: "no"
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}?sslmode=disable",
+        "up",
+      ]
 
   ollama:
     container_name: ollama

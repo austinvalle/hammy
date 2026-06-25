@@ -11,10 +11,32 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - db:/var/lib/postgresql/data
-      # Initialize the database on first create
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - 5432:5432
+
+  # Runs all pending database migrations once, then exits. The bot waits for
+  # this to complete successfully before starting (see hammy.depends_on).
+  migrate:
+    image: migrate/migrate
+    networks:
+      - hammy
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable",
+        "up",
+      ]
 
   hammy:
     container_name: hammy
@@ -25,7 +47,10 @@ services:
       - hammy
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       LOG_LEVEL: ${LOG_LEVEL}
