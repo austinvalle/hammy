@@ -22,8 +22,11 @@ var hammyModelFile string
 //go:embed tpl/chat.tpl
 var chatTmpl string
 
-// max = llama 3.1 - system prompt from modelfile - num_ctx from modelfile
-const maxTokens = 128000 - 515 - 4096
+// Budget for assembled prompt history, kept under the model's real context
+// window (num_ctx 8192 in hammy.modelfile) so our own trimming governs what the
+// model sees instead of Ollama silently truncating. The headroom leaves room for
+// the system prompt, the response, and tiktoken estimate error vs Gemma's tokenizer.
+const maxTokens = 8192 - 1024
 
 type Options func(opts map[string]any)
 
