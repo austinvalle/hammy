@@ -43,6 +43,7 @@ func (c *placeBetCommand) CanActivate(s *discordgo.Session, m discordgo.Message)
 	channel, err := s.Channel(m.ChannelID)
 	if err != nil {
 		c.logger.Error("error getting channel ID for placeBetCommand", "err", err)
+		return false
 	}
 
 	if channel.Type != discordgo.ChannelTypeDM {
@@ -87,7 +88,7 @@ func (c *placeBetCommand) Handler(_ context.Context, s *discordgo.Session, m *di
 		return nil, nil
 	}
 
-	bet, err := strconv.Atoi(strings.Replace(numbersFound[0], ",", "", -1))
+	bet, err := strconv.Atoi(strings.ReplaceAll(numbersFound[0], ",", ""))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (c *placeBetCommand) completeGame(s *discordgo.Session, activeChallenge cha
 	winnerID := activeChallenge.ChallengedID
 	loserID := activeChallenge.ChallengerID
 
-	if activeChallenge.ChallengerBet == activeChallenge.ChallengedBet {
+	if *activeChallenge.ChallengerBet == *activeChallenge.ChallengedBet {
 		winnerID = activeChallenge.ChallengerID
 		loserID = activeChallenge.ChallengedID
 	}

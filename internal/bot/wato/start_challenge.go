@@ -40,6 +40,7 @@ func (c *startChallengeCommand) CanActivate(s *discordgo.Session, m discordgo.Me
 	channel, err := s.Channel(m.ChannelID)
 	if err != nil {
 		c.logger.Error("error getting channel ID for startChallengeCommand", "err", err)
+		return false
 	}
 
 	if channel.Type != discordgo.ChannelTypeGuildText {

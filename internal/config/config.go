@@ -26,6 +26,9 @@ type Config struct {
 	DBPassword string `mapstructure:"POSTGRES_PASSWORD"`
 
 	DisableLLM bool `mapstructure:"DISABLE_LLM"`
+
+	DadAnnouncementChannelID string `mapstructure:"DAD_ANNOUNCEMENT_CHANNEL_ID"`
+	DadRoleID                string `mapstructure:"DAD_ROLE_ID"`
 }
 
 func NewConfig() Config {
@@ -45,6 +48,8 @@ func NewConfig() Config {
 	_ = viper.BindEnv("POSTGRES_PASSWORD")
 	viper.SetDefault("DISABLE_LLM", false)
 	viper.SetDefault("ENHANCE_IMAGE_PROMPT", true)
+	_ = viper.BindEnv("DAD_ANNOUNCEMENT_CHANNEL_ID")
+	_ = viper.BindEnv("DAD_ROLE_ID")
 	viper.AutomaticEnv()
 
 	err := viper.Unmarshal(&cfg)

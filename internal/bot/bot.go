@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/austinvalle/hammy/internal/bot/dad"
 	"github.com/austinvalle/hammy/internal/bot/wato"
 	"github.com/austinvalle/hammy/internal/command"
 	"github.com/austinvalle/hammy/internal/config"
@@ -40,7 +41,7 @@ func RunBot(l *slog.Logger, session *discordgo.Session, cfg config.Config) error
 
 	logger.Info("connecting to database", "host", cfg.DBHost, "port", cfg.DBPort)
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s", cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort)
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
 	dbpool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		return fmt.Errorf("error creating database: %w", err)
@@ -52,7 +53,13 @@ func RunBot(l *slog.Logger, session *discordgo.Session, cfg config.Config) error
 		return fmt.Errorf("error pinging database: %w", pErr)
 	}
 
-	registerBotCommands(logger, session, model, cfg, dbpool)
+	dadRepo := dad.NewRepository(dbpool)
+	registerBotCommands(logger, session, model, cfg, dbpool, dadRepo)
+
+	if cfg.DadAnnouncementChannelID != "" && cfg.DadRoleID != "" {
+		dad.StartScheduler(ctx, logger, session, dadRepo, cfg.DadAnnouncementChannelID, cfg.DadRoleID)
+	}
+
 	_ = session.UpdateStatusComplex(discordgo.UpdateStatusData{
 		AFK: false,
 	})
@@ -68,7 +75,7 @@ func RunBot(l *slog.Logger, session *discordgo.Session, cfg config.Config) error
 	return nil
 }
 
-func registerBotCommands(l *slog.Logger, s *discordgo.Session, model *llm.LLM, cfg config.Config, dbPool *pgxpool.Pool) {
+func registerBotCommands(l *slog.Logger, s *discordgo.Session, model *llm.LLM, cfg config.Config, dbPool *pgxpool.Pool, dadRepo dad.Repository) {
 	ping := newPingCommand()
 
 	command.RegisterGuildCommand(l, s, ping)
@@ -91,6 +98,16 @@ func registerBotCommands(l *slog.Logger, s *discordgo.Session, model *llm.LLM, c
 			art,
 			analyze,
 			chat,
+		}...)
+	}
+
+	// Dad of the Month commands
+	if cfg.DadAnnouncementChannelID != "" && cfg.DadRoleID != "" {
+		textCommands = append(textCommands, []command.TextCommand{
+			dad.NewAddDadCommand(l, cfg.DadRoleID),
+			dad.NewSetDadCommand(l, dadRepo, cfg.DadAnnouncementChannelID, cfg.DadRoleID),
+			dad.NewPickDadCommand(l, dadRepo, cfg.DadAnnouncementChannelID, cfg.DadRoleID),
+			dad.NewWhosDadCommand(l, dadRepo),
 		}...)
 	}
 

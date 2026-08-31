@@ -18,6 +18,8 @@ const (
 	urlPattern = ".*(?P<url>https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)).*"
 )
 
+var compiledURLRegex = regexp.MustCompile(urlPattern)
+
 type summarizeCommand struct {
 	logger *slog.Logger
 	llm    *llm.LLM
@@ -34,16 +36,14 @@ func (c *summarizeCommand) Name() string {
 }
 
 func (c *summarizeCommand) CanActivate(s *discordgo.Session, m discordgo.Message) bool {
-	urlRegex := regexp.MustCompile(urlPattern)
-
 	if mentioned, err := isHammyMentioned(s, m); err != nil {
 		c.logger.Error("error checking mentions", "err", err)
 	} else if !mentioned {
 		return false
 	}
 
-	matches := urlRegex.FindStringSubmatch(m.Content)
-	idx := urlRegex.SubexpIndex("url")
+	matches := compiledURLRegex.FindStringSubmatch(m.Content)
+	idx := compiledURLRegex.SubexpIndex("url")
 
 	if len(matches) < idx+1 || matches[idx] == "" {
 		return false
@@ -59,13 +59,12 @@ func (c *summarizeCommand) Handler(ctx context.Context, s *discordgo.Session, m 
 		c.logger.Error("error adding reaction: ", "err", err)
 	}
 
-	urlRegex := regexp.MustCompile(urlPattern)
 	c.logger.Debug("In summary handler")
 
 	blacklistedSites := []string{"twitter.com", "x.com", "facebook.com", "instagram.com", "reddit.com", "google.com"}
 
-	matches := urlRegex.FindStringSubmatch(m.Content)
-	idx := urlRegex.SubexpIndex("url")
+	matches := compiledURLRegex.FindStringSubmatch(m.Content)
+	idx := compiledURLRegex.SubexpIndex("url")
 	if len(matches) < idx+1 || matches[idx] == "" {
 		return nil, fmt.Errorf("URL regex did not match")
 	}

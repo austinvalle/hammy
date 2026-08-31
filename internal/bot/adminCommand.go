@@ -51,7 +51,7 @@ func (a *adminCommand) Handler(_ context.Context, s *discordgo.Session, m *disco
 			return nil, err
 		}
 
-		a.llm.Temperature = temp
+		a.llm.SetTemperature(temp)
 
 		return &discordgo.MessageSend{
 			Content: fmt.Sprintf("temperature set to %.2f", temp),
@@ -80,19 +80,19 @@ func (a *adminCommand) Handler(_ context.Context, s *discordgo.Session, m *disco
 	case setGuidanceCommand.MatchString(m.Content):
 		matches := setGuidanceCommand.FindStringSubmatch(m.Content)
 		if len(matches) != 2 {
-			return nil, fmt.Errorf("could not extract guidance bool")
+			return nil, fmt.Errorf("could not extract guidance value")
 		}
 
 		guidance, err := strconv.ParseFloat(matches[1], 32)
 		if err != nil {
-			return nil, fmt.Errorf("could not extract guidance bool")
+			return nil, fmt.Errorf("could not extract guidance value")
 		}
 		if guidance > 20 || guidance < -20 {
 			return &discordgo.MessageSend{
-				Content: fmt.Sprintf("guidance must be between -20 and 20"),
+				Content: "guidance must be between -20 and 20",
 			}, nil
 		}
-		a.llm.Guidance = float32(guidance)
+		a.llm.SetGuidance(float32(guidance))
 
 		return &discordgo.MessageSend{
 			Content: fmt.Sprintf("guidance set to %.2f", guidance),
@@ -120,15 +120,12 @@ func isAuthorAdmin(s *discordgo.Session, m discordgo.Message) bool {
 		return false
 	}
 
-	return slices.ContainsFunc(m.Member.Roles, func(rId string) bool {
-		roles, err := s.GuildRoles(m.GuildID)
-		if err != nil {
-			return false
-		}
-		if roles == nil {
-			return false
-		}
+	roles, err := s.GuildRoles(m.GuildID)
+	if err != nil || roles == nil {
+		return false
+	}
 
+	return slices.ContainsFunc(m.Member.Roles, func(rId string) bool {
 		for _, role := range roles {
 			if role.ID == rId && (role.Permissions&discordgo.PermissionAdministrator) != 0 {
 				return true
